@@ -127,11 +127,35 @@
             <p>Điểm của bạn: <span id="finalScore">0</span></p>
             <button class="btn" onclick="startGame()">Chơi Lại</button>
             <br><br>
-            <a href="start-page.html" class="btn-back">🏠 Quay lại Trang Chủ</a>
+            <a href="index.html" class="btn-back">🏠 Quay lại Trang Chủ</a>
         </div>
     </div>
 
     <script>
+        // Polyfill for roundRect to support older or non-standard browsers
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (typeof r === 'number') {
+                    r = [r];
+                }
+                if (r.length === 1) {
+                    r = [r[0], r[0], r[0], r[0]];
+                }
+                this.beginPath();
+                this.moveTo(x + r[0], y);
+                this.lineTo(x + w - r[1], y);
+                this.quadraticCurveTo(x + w, y, x + w, y + r[1]);
+                this.lineTo(x + w, y + h - r[2]);
+                this.quadraticCurveTo(x + w, y + h, x + w - r[2], y + h);
+                this.lineTo(x + r[3], y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - r[3]);
+                this.lineTo(x, y + r[0]);
+                this.quadraticCurveTo(x, y, x + r[0], y);
+                this.closePath();
+                return this;
+            };
+        }
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
@@ -142,8 +166,12 @@
         const gridSize = 20;
         const tileCount = canvas.width / gridSize;
 
-        let snake = [];
-        let food = {};
+        let snake = [
+            { x: 10, y: 10 },
+            { x: 9, y: 10 },
+            { x: 8, y: 10 }
+        ];
+        let food = { x: 5, y: 5 };
         let direction = 'right';
         let nextDirection = 'right';
         let score = 0;

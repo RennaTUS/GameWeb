@@ -172,9 +172,8 @@
     <p class="sub">Hãy bắt đầu vòng lặp mới mạnh hơn</p>
     <div id="goStats"></div>
     <button id="btnRestart">Cùng Tiếp Tục Làm Anh Hùng Nào</button>
-    <a href="start-page.html" style="display:block; margin-top:16px; color:var(--ivory-dim); text-decoration:none; font-size:14px;">← Kệ Phainon và quay lại trang chủ</a>
+    <a href="index.html" id="btnBackToStart">← Kệ Phainon và quay lại trang chủ</a>
   </div>
-</div>
 </div>
 
 <div id="flashEl" class="flash"></div>
@@ -182,6 +181,30 @@
 <script>
 (function(){
 "use strict";
+
+// Polyfill for roundRect to support older or non-standard browsers
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    if (typeof r === 'number') {
+      r = [r];
+    }
+    if (r.length === 1) {
+      r = [r[0], r[0], r[0], r[0]];
+    }
+    this.beginPath();
+    this.moveTo(x + r[0], y);
+    this.lineTo(x + w - r[1], y);
+    this.quadraticCurveTo(x + w, y, x + w, y + r[1]);
+    this.lineTo(x + w, y + h - r[2]);
+    this.quadraticCurveTo(x + w, y + h, x + w - r[2], y + h);
+    this.lineTo(x + r[3], y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - r[3]);
+    this.lineTo(x, y + r[0]);
+    this.quadraticCurveTo(x, y, x + r[0], y);
+    this.closePath();
+    return this;
+  };
+}
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -441,10 +464,11 @@ function update(dt){
     if(d < 14){
       player.exp += o.value;
       orbs.splice(i,1);
-      if(player.exp >= player.expToNext){
-        levelUp();
-      }
     }
+  }
+
+  if(player.exp >= player.expToNext){
+    levelUp();
   }
 
   // --- particles ---
