@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hành Trình Cứu thế</title>
+<style>
+  :root{
+    --gold: #d4af5a;
+    --gold-bright: #f3d98b;
+    --gold-dim: #8a6d2f;
+    --ivory: #f1e8d0;
+    --ivory-dim: #cfc4a0;
+    --bg-dark: #0c0a08;
+    --bg-panel: #16130d;
+    --danger: #b23a3a;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:var(--bg-dark);
+    font-family: Georgia, 'Times New Roman', serif;
+    color:var(--ivory);
+    user-select:none;
+  }
+  #gameCanvas{
+    display:block;
+    width:100vw; height:100vh;
+    background:radial-gradient(ellipse at center, #221c12 0%, #0c0a08 70%);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:fixed; top:0; left:0; width:100%; padding:14px 18px;
+    pointer-events:none; z-index:10;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .barRow{ display:flex; align-items:center; gap:10px; }
+  .barLabel{
+    font-size:13px; letter-spacing:1px; color:var(--gold-bright);
+    text-shadow:0 0 4px rgba(0,0,0,0.8); width:58px; text-transform:uppercase;
+  }
+  .barTrack{
+    flex:1; max-width:340px; height:16px; border-radius:8px;
+    background:rgba(0,0,0,0.55); border:1px solid var(--gold-dim);
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.8), 0 0 6px rgba(212,175,90,0.15);
+    overflow:hidden; position:relative;
+  }
+  .barFill{ height:100%; border-radius:8px 0 0 8px; transition:width 0.15s ease-out; }
+  .hpFill{ background:linear-gradient(90deg,#7a1f1f,#c94b4b); box-shadow:0 0 8px rgba(201,75,75,0.6); }
+  .expFill{ background:linear-gradient(90deg,#8a6d2f,var(--gold-bright)); box-shadow:0 0 8px rgba(243,217,139,0.6); }
+  .statsRow{
+    display:flex; gap:22px; font-size:14px; color:var(--ivory-dim);
+    text-shadow:0 1px 2px rgba(0,0,0,0.9);
+  }
+  .statsRow b{ color:var(--gold-bright); }
+
+  /* ---------- Overlays ---------- */
+  .overlay{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(6,5,3,0.72); backdrop-filter: blur(2px);
+    z-index:50; opacity:0; pointer-events:none; transition:opacity 0.25s ease;
+  }
+  .overlay.show{ opacity:1; pointer-events:all; }
+
+  .panel{
+    background:linear-gradient(180deg, #1c1811, #100e0a);
+    border:1.5px solid var(--gold);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.6), 0 0 40px rgba(212,175,90,0.25), inset 0 0 30px rgba(212,175,90,0.06);
+    border-radius:10px;
+    padding:26px 30px;
+    text-align:center;
+    max-width:640px;
+  }
+  .panel h1{
+    margin:0 0 6px; font-size:26px; letter-spacing:2px; color:var(--gold-bright);
+    text-shadow:0 0 12px rgba(243,217,139,0.5);
+  }
+  .panel p.sub{ margin:0 0 20px; color:var(--ivory-dim); font-size:14px; letter-spacing:1px;}
+
+  #cardRow{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+  .card{
+    width:170px; padding:16px 12px; border-radius:8px; cursor:pointer;
+    background:linear-gradient(180deg,#2a2417,#171309);
+    border:1px solid var(--gold-dim);
+    transition:transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    pointer-events:all;
+  }
+  .card:hover{
+    transform:translateY(-4px);
+    border-color:var(--gold-bright);
+    box-shadow:0 4px 18px rgba(243,217,139,0.35);
+  }
+  .card .icon{ font-size:30px; margin-bottom:8px; }
+  .card .name{ color:var(--gold-bright); font-size:15px; margin-bottom:6px; letter-spacing:0.5px;}
+  .card .desc{ color:var(--ivory-dim); font-size:12px; line-height:1.4; }
+
+  #btnRestart{
+    margin-top:8px; padding:10px 26px; font-size:15px; letter-spacing:1px;
+    background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+    color:#221a0c; border:none; border-radius:6px; cursor:pointer;
+    font-family:inherit; font-weight:bold;
+    box-shadow:0 3px 10px rgba(0,0,0,0.5);
+    pointer-events:all;
+  }
+  #btnRestart:hover{ filter:brightness(1.08); }
+  #btnBackToStart{
+    margin-top:12px; padding:8px 24px; font-size:14px; letter-spacing:1px;
+    background:transparent; border:1px solid var(--gold-dim); color:var(--ivory-dim);
+    border-radius:6px; cursor:pointer; text-decoration:none; display:inline-block;
+    transition:all 0.2s ease; font-family:inherit;
+  }
+  #btnBackToStart:hover{
+    background:rgba(212,175,90,0.15); border-color:var(--gold-bright); color:var(--gold-bright);
+  }
+
+  #startPanel .desc{ color:var(--ivory-dim); font-size:13px; margin-bottom:18px; line-height:1.6; }
+
+  #goStats{ font-size:17px; color:var(--ivory); margin-bottom:18px; }
+  #goStats b{ color:var(--gold-bright); }
+
+  .flash{
+    position:fixed; inset:0; pointer-events:none; z-index:40;
+    background:rgba(201,75,75,0.0);
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="hud">
+  <div class="barRow">
+    <div class="barLabel">HP</div>
+    <div class="barTrack"><div id="hpFill" class="barFill hpFill" style="width:100%"></div></div>
+  </div>
+  <div class="barRow">
+    <div class="barLabel">EXP</div>
+    <div class="barTrack"><div id="expFill" class="barFill expFill" style="width:0%"></div></div>
+  </div>
+  <div class="statsRow">
+    <div>Cấp: <b id="lvlText">1</b></div>
+    <div>Thời gian: <b id="timeText">00:00</b></div>
+    <div>Hạ gục: <b id="killText">0</b></div>
+  </div>
+</div>
+
+<div id="startOverlay" class="overlay show">
+  <div class="panel" id="startPanel">
+    <h1>PHAINON CÙNG 33M</h1>
+    <p class="sub">Tù nhân nhặt lửa - Anh hùng giữ lửa</p>
+    <div class="desc">
+      Di chuyển: <b>WASD</b> hoặc phím mũi tên<br>
+      Thương băng tự động đánh kẻ địch gần nhất.<br>
+      Vòng lặp không ngừng — Ngục Tù Hãm Thần.
+    </div>
+    <button id="btnStart">Khởi hành</button>
+  </div>
+</div>
+
+<div id="levelUpOverlay" class="overlay">
+  <div class="panel">
+    <h1>LÊN CẤP</h1>
+    <p class="sub">Chọn một khả năng của hỏa chủng</p>
+    <div id="cardRow"></div>
+  </div>
+</div>
+
+<div id="gameOverOverlay" class="overlay">
+  <div class="panel">
+    <h1>VÒNG LẶP KẾT THÚC, IRON TOMB ĐÃ HOÀN THÀNH</h1>
+    <p class="sub">Hãy bắt đầu vòng lặp mới mạnh hơn</p>
+    <div id="goStats"></div>
+    <button id="btnRestart">Cùng Tiếp Tục Làm Anh Hùng Nào</button>
+    <a href="start-page.html" style="display:block; margin-top:16px; color:var(--ivory-dim); text-decoration:none; font-size:14px;">← Kệ Phainon và quay lại trang chủ</a>
+  </div>
+</div>
+</div>
+
+<div id="flashEl" class="flash"></div>
+
+<script>
+(function(){
+"use strict";
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0;
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- utility ----------
+function rand(a,b){ return a + Math.random()*(b-a); }
+function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1,y2-y1); }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function angleTo(x1,y1,x2,y2){ return Math.atan2(y2-y1,x2-x1); }
+
+// ---------- input ----------
+const keys = {};
+window.addEventListener('keydown', e=>{
+  keys[e.key.toLowerCase()] = true;
+});
+window.addEventListener('keyup', e=>{
+  keys[e.key.toLowerCase()] = false;
+});
+
+// ---------- game state ----------
+let state = 'start'; // start | playing | levelup | gameover
+let player, enemies, orbs, particles, slashFx;
+let survivalTime = 0, killCount = 0, spawnTimer = 0;
+let lastTs = 0;
+let camShakeT = 0, camShakeMag = 0;
+
+const UPGRADE_POOL = [
+  { id:'damage', icon:'⚔️', name:'Lưỡi Băng Sắc Bén', desc:'+4 Sát thương thương băng',
+    apply:p=>{ p.damage += 4; } },
+  { id:'atkspeed', icon:'⏱️', name:'Nhịp Đâm Nhanh', desc:'-15% thời gian hồi chiêu',
+    apply:p=>{ p.atkCooldownMax = Math.max(0.18, p.atkCooldownMax*0.85); } },
+  { id:'maxhp', icon:'💛', name:'Ý Chí Kiên Cường', desc:'+22 Máu tối đa & hồi đầy',
+    apply:p=>{ p.maxHp += 22; p.hp = p.maxHp; } },
+  { id:'movespeed', icon:'🥾', name:'Bước Chân Gió', desc:'+18% Tốc độ di chuyển',
+    apply:p=>{ p.speed *= 1.18; } },
+  { id:'range', icon:'🎯', name:'Tầm Đâm Xa', desc:'+22 Phạm vi tấn công',
+    apply:p=>{ p.range += 22; } },
+  { id:'orb', icon:'❄️', name:'Mảnh Băng Vệ Tinh', desc:'+1 Mảnh băng xoay quanh',
+    apply:p=>{ p.orbCount = Math.min(6, p.orbCount+1); } },
+];
+
+function newPlayer(){
+  return {
+    x: W/2, y: H/2, r: 20,
+    hp: 100, maxHp: 100,
+    speed: 190,
+    damage: 9,
+    range: 130,
+    atkCooldown: 0, atkCooldownMax: 0.75,
+    level: 1, exp: 0, expToNext: 12,
+    orbCount: 0, orbDamage: 5, orbAngle: 0,
+    facing: -Math.PI/2,
+    invuln: 0,
+    animT: 0,
+    attackAnim: 0, // 0..1
+    attackTargetAngle: -Math.PI/2,
+    moving: false,
+  };
+}
+
+function resetGame(){
+  player = newPlayer();
+  enemies = [];
+  orbs = [];
+  particles = [];
+  slashFx = [];
+  survivalTime = 0;
+  killCount = 0;
+  spawnTimer = 0.6;
+  updateHUD();
+}
+
+// ---------- spawning ----------
+function spawnEnemy(){
+  const t = survivalTime;
+  const side = Math.floor(rand(0,4));
+  let x,y;
+  const margin = 60;
+  if(side===0){ x=rand(0,W); y=-margin; }
+  else if(side===1){ x=W+margin; y=rand(0,H); }
+  else if(side===2){ x=rand(0,W); y=H+margin; }
+  else { x=-margin; y=rand(0,H); }
+
+  const hp = 12 + t*0.9 + player.level*2;
+  const spd = 42 + Math.min(70, t*0.35);
+  enemies.push({
+    x,y, r: rand(13,17),
+    hp, maxHp: hp,
+    speed: spd,
+    dmg: 8 + Math.min(14, t*0.06),
+    hitFlash:0,
+    wobble: rand(0, Math.PI*2),
+  });
+}
+
+function spawnExpOrb(x,y,value){
+  orbs.push({x,y, r:6, value, t:rand(0,10)});
+}
+
+// ---------- particles ----------
+function addParticle(x,y,color,life,speed,size){
+  const a = rand(0,Math.PI*2);
+  particles.push({
+    x,y, vx:Math.cos(a)*speed, vy:Math.sin(a)*speed,
+    life, maxLife:life, color, size
+  });
+}
+function burst(x,y,color,count,speed,life,size){
+  for(let i=0;i<count;i++) addParticle(x,y,color,life*rand(0.6,1.2),speed*rand(0.5,1.2),size*rand(0.6,1.3));
+}
+
+function addSlash(x,y,angle,range,color){
+  slashFx.push({x,y,angle,range,t:0,maxT:0.18,color});
+}
+
+// ---------- update ----------
+function update(dt){
+  survivalTime += dt;
+
+  // --- movement ---
+  let dx=0, dy=0;
+  if(keys['w']||keys['arrowup']) dy -= 1;
+  if(keys['s']||keys['arrowdown']) dy += 1;
+  if(keys['a']||keys['arrowleft']) dx -= 1;
+  if(keys['d']||keys['arrowright']) dx += 1;
+  const moving = (dx!==0||dy!==0);
+  player.moving = moving;
+  if(moving){
+    const len = Math.hypot(dx,dy);
+    dx/=len; dy/=len;
+    player.x += dx*player.speed*dt;
+    player.y += dy*player.speed*dt;
+    player.facing = Math.atan2(dy,dx);
+  }
+  player.x = clamp(player.x, player.r, W-player.r);
+  player.y = clamp(player.y, player.r, H-player.r);
+  player.animT += dt;
+
+  if(player.invuln>0) player.invuln -= dt;
+  if(player.attackAnim>0) player.attackAnim = Math.max(0, player.attackAnim - dt*3.2);
+
+  // --- spawn logic ---
+  spawnTimer -= dt;
+  const spawnInterval = Math.max(0.28, 1.4 - survivalTime*0.01);
+  if(spawnTimer<=0){
+    spawnTimer = spawnInterval;
+    const batch = 1 + Math.floor(survivalTime/25);
+    for(let i=0;i<batch;i++) spawnEnemy();
+  }
+
+  // --- enemies ---
+  for(let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+    const a = angleTo(e.x,e.y,player.x,player.y);
+    e.wobble += dt*4;
+    const wob = Math.sin(e.wobble)*0.15;
+    e.x += Math.cos(a+wob)*e.speed*dt;
+    e.y += Math.sin(a+wob)*e.speed*dt;
+    if(e.hitFlash>0) e.hitFlash -= dt*4;
+
+    const d = dist(e.x,e.y,player.x,player.y);
+    if(d < e.r+player.r && player.invuln<=0){
+      player.hp -= e.dmg;
+      player.invuln = 0.6;
+      flashScreen();
+      camShakeT = 0.25; camShakeMag = 6;
+      if(player.hp<=0){
+        player.hp = 0;
+        triggerGameOver();
+        return;
+      }
+    }
+  }
+
+  // --- player attack (spear thrust to nearest enemy) ---
+  player.atkCooldown -= dt;
+  if(player.atkCooldown<=0 && enemies.length>0){
+    let nearest=null, nd=Infinity;
+    for(const e of enemies){
+      const d = dist(player.x,player.y,e.x,e.y);
+      if(d<nd){ nd=d; nearest=e; }
+    }
+    if(nearest && nd <= player.range){
+      player.atkCooldown = player.atkCooldownMax;
+      const ang = angleTo(player.x,player.y,nearest.x,nearest.y);
+      player.attackTargetAngle = ang;
+      player.facing = ang;
+      player.attackAnim = 1;
+      addSlash(player.x,player.y,ang,player.range,'rgba(200,230,255,0.85)');
+      // hit all enemies within a cone along range
+      for(const e of enemies){
+        const d = dist(player.x,player.y,e.x,e.y);
+        if(d<=player.range){
+          const ea = angleTo(player.x,player.y,e.x,e.y);
+          let diff = Math.abs(ea-ang);
+          if(diff>Math.PI) diff = Math.PI*2-diff;
+          if(diff < 0.55){
+            damageEnemy(e, player.damage);
+          }
+        }
+      }
+    }
+  }
+
+  // --- orbiting frost shards ---
+  if(player.orbCount>0){
+    player.orbAngle += dt*2.4;
+    const orbitR = 55;
+    for(let i=0;i<player.orbCount;i++){
+      const ang = player.orbAngle + (Math.PI*2/player.orbCount)*i;
+      const sx = player.x + Math.cos(ang)*orbitR;
+      const sy = player.y + Math.sin(ang)*orbitR;
+      for(const e of enemies){
+        if(e._shardHit && e._shardHit>0) continue;
+        const d = dist(sx,sy,e.x,e.y);
+        if(d < e.r+9){
+          damageEnemy(e, player.orbDamage);
+          e._shardHit = 0.35;
+        }
+      }
+    }
+  }
+  for(const e of enemies){
+    if(e._shardHit>0) e._shardHit -= dt;
+  }
+
+  // remove dead enemies (handled in damageEnemy via markers) -- cleanup pass
+  for(let i=enemies.length-1;i>=0;i--){
+    if(enemies[i].hp<=0){
+      const e = enemies[i];
+      burst(e.x,e.y,'#e8c97a',10,90,0.5,3);
+      spawnExpOrb(e.x,e.y, 3 + Math.floor(survivalTime/20));
+      killCount++;
+      enemies.splice(i,1);
+    }
+  }
+
+  // --- exp orbs ---
+  const pickupR = 46;
+  for(let i=orbs.length-1;i>=0;i--){
+    const o = orbs[i];
+    o.t += dt;
+    const d = dist(o.x,o.y,player.x,player.y);
+    if(d < pickupR){
+      const a = angleTo(o.x,o.y,player.x,player.y);
+      const pull = 420;
+      o.x += Math.cos(a)*pull*dt;
+      o.y += Math.sin(a)*pull*dt;
+    }
+    if(d < 14){
+      player.exp += o.value;
+      orbs.splice(i,1);
+      if(player.exp >= player.expToNext){
+        levelUp();
+      }
+    }
+  }
+
+  // --- particles ---
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.life -= dt;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vx *= 0.92; p.vy *= 0.92;
+    if(p.life<=0) particles.splice(i,1);
+  }
+  for(let i=slashFx.length-1;i>=0;i--){
+    slashFx[i].t += dt;
+    if(slashFx[i].t>slashFx[i].maxT) slashFx.splice(i,1);
+  }
+
+  if(camShakeT>0) camShakeT -= dt;
+
+  updateHUD();
+}
+
+function damageEnemy(e, dmg){
+  e.hp -= dmg;
+  e.hitFlash = 1;
+  burst(e.x,e.y,'#fff3cf',4,60,0.28,2);
+}
+
+function levelUp(){
+  player.exp -= player.expToNext;
+  player.level++;
+  player.expToNext = Math.floor(player.expToNext*1.28 + 6);
+  burst(player.x,player.y,'#f3d98b',30,140,0.7,4);
+  state = 'levelup';
+  showLevelUpPanel();
+}
+
+function flashScreen(){
+  const el = document.getElementById('flashEl');
+  el.style.background = 'rgba(201,75,75,0.28)';
+  el.style.transition = 'none';
+  requestAnimationFrame(()=>{
+    el.style.transition = 'background 0.4s ease';
+    el.style.background = 'rgba(201,75,75,0.0)';
+  });
+}
+
+// ---------- drawing ----------
+function drawBackground(){
+  ctx.fillStyle = '#0c0a08';
+  ctx.fillRect(0,0,W,H);
+  // faint radial vignette warmth
+  const g = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*0.7);
+  g.addColorStop(0,'rgba(60,48,24,0.35)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
+}
+
+function drawOrbs(){
+  for(const o of orbs){
+    const pulse = 1 + Math.sin(o.t*6)*0.15;
+    ctx.save();
+    ctx.translate(o.x,o.y);
+    ctx.beginPath();
+    ctx.arc(0,0,o.r*pulse,0,Math.PI*2);
+    const g = ctx.createRadialGradient(0,0,0,0,0,o.r*pulse*2);
+    g.addColorStop(0,'#fff3cf');
+    g.addColorStop(1,'rgba(212,175,90,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-20,-20,40,40);
+    ctx.beginPath();
+    ctx.arc(0,0,o.r*0.55,0,Math.PI*2);
+    ctx.fillStyle = '#f3d98b';
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawParticles(){
+  for(const p of particles){
+    const a = clamp(p.life/p.maxLife,0,1);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawSlashFx(){
+  for(const s of slashFx){
+    const a = 1 - s.t/s.maxT;
+    ctx.save();
+    ctx.translate(s.x,s.y);
+    ctx.rotate(s.angle);
+    ctx.globalAlpha = a*0.8;
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 4*a+2;
+    ctx.beginPath();
+    ctx.moveTo(10,0);
+    ctx.lineTo(s.range, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(s.range,0, 8*a+4, 0, Math.PI*2);
+    ctx.fillStyle = s.color;
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawEnemy(e){
+  ctx.save();
+  ctx.translate(e.x,e.y);
+  // smoky shadow body
+  const flash = e.hitFlash>0 ? e.hitFlash : 0;
+  const bodyGrad = ctx.createRadialGradient(0,-4,2,0,0,e.r*1.6);
+  bodyGrad.addColorStop(0, flash>0? '#ffffff' : '#3a2a55');
+  bodyGrad.addColorStop(0.5, flash>0 ? '#e8c97a' : '#1b1030');
+  bodyGrad.addColorStop(1, 'rgba(10,6,18,0)');
+  ctx.beginPath();
+  const wob = Math.sin(e.wobble)*2;
+  ctx.moveTo(0,-e.r-4);
+  ctx.quadraticCurveTo(e.r+wob, -e.r*0.4, e.r*0.6, e.r*0.8);
+  ctx.quadraticCurveTo(0, e.r*1.3, -e.r*0.6, e.r*0.8);
+  ctx.quadraticCurveTo(-e.r-wob, -e.r*0.4, 0, -e.r-4);
+  ctx.closePath();
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+  // trailing wisps
+  ctx.beginPath();
+  ctx.moveTo(-e.r*0.3, e.r*0.7);
+  ctx.quadraticCurveTo(-e.r*0.6, e.r*1.6+wob, -e.r*0.15, e.r*1.9);
+  ctx.quadraticCurveTo(-e.r*0.05, e.r*1.3, 0.0, e.r*0.9);
+  ctx.fillStyle = 'rgba(27,16,48,0.7)';
+  ctx.fill();
+  // glowing eyes
+  ctx.fillStyle = flash>0 ? '#ffffff' : '#c73b3b';
+  ctx.shadowColor = flash>0 ? '#fff3cf' : '#c73b3b';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.ellipse(-e.r*0.28,-e.r*0.15, 2.6,3.4,0,0,Math.PI*2);
+  ctx.ellipse(e.r*0.28,-e.r*0.15, 2.6,3.4,0,0,Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // hp bar
+  if(e.hp < e.maxHp){
+    const w = e.r*2;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(e.x-w/2, e.y-e.r-14, w, 4);
+    ctx.fillStyle = '#c94b4b';
+    ctx.fillRect(e.x-w/2, e.y-e.r-14, w*clamp(e.hp/e.maxHp,0,1), 4);
+  }
+}
+
+function drawOrbitShards(){
+  if(player.orbCount<=0) return;
+  const orbitR = 55;
+  for(let i=0;i<player.orbCount;i++){
+    const ang = player.orbAngle + (Math.PI*2/player.orbCount)*i;
+    const sx = player.x + Math.cos(ang)*orbitR;
+    const sy = player.y + Math.sin(ang)*orbitR;
+    ctx.save();
+    ctx.translate(sx,sy);
+    ctx.rotate(ang + player.animT*3);
+    const g = ctx.createLinearGradient(-8,0,8,0);
+    g.addColorStop(0,'#dff3ff');
+    g.addColorStop(0.5,'#7fb8e8');
+    g.addColorStop(1,'#2c4f7c');
+    ctx.beginPath();
+    ctx.moveTo(0,-9);
+    ctx.lineTo(4,0);
+    ctx.lineTo(0,9);
+    ctx.lineTo(-4,0);
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.shadowColor = '#8fd4ff';
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ---- Character (chibi, navy hair, dark armor, yellow eyes) ----
+function drawPlayer(){
+  const p = player;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+
+  const bob = p.moving ? Math.sin(p.animT*10)*3 : Math.sin(p.animT*2.2)*1.4;
+  ctx.translate(0, bob);
+
+  const facingRight = Math.cos(p.facing) >= 0;
+  const flip = facingRight ? 1 : -1;
+
+  // soft ground shadow
+  ctx.save();
+  ctx.translate(0, p.r*1.5);
+  ctx.scale(1,0.35);
+  ctx.beginPath();
+  ctx.arc(0,0, p.r*0.9, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fill();
+  ctx.restore();
+
+  ctx.scale(flip,1);
+
+  // ---- weapon (ice spear) drawn behind/beside body ----
+  drawWeapon();
+
+  // ---- legs (simple walk cycle) ----
+  const legSwing = p.moving ? Math.sin(p.animT*10)*7 : 0;
+  ctx.fillStyle = '#141018';
+  ctx.beginPath();
+  ctx.roundRect(-8, 8+Math.abs(legSwing)*0.1, 7, 14, 3);
+  ctx.roundRect(1, 8+Math.abs(-legSwing)*0.1, 7, 14, 3);
+  ctx.fill();
+
+  // ---- body / armor ----
+  const bodyGrad = ctx.createLinearGradient(0,-6,0,18);
+  bodyGrad.addColorStop(0, '#242030');
+  bodyGrad.addColorStop(1, '#0d0b12');
+  ctx.beginPath();
+  ctx.roundRect(-12,-8,24,26,8);
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+  // gold trim
+  ctx.strokeStyle = 'rgba(212,175,90,0.65)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-9,-2); ctx.lineTo(9,-2);
+  ctx.stroke();
+  // shoulder armor
+  ctx.fillStyle = '#1b1722';
+  ctx.beginPath();
+  ctx.ellipse(-11,-4,6,7,0.3,0,Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(11,-4,6,7,-0.3,0,Math.PI*2);
+  ctx.fill();
+
+  // ---- head ----
+  ctx.save();
+  ctx.translate(0,-20);
+
+  // head base
+  ctx.beginPath();
+  ctx.arc(0,0, 15, 0, Math.PI*2);
+  const skinGrad = ctx.createRadialGradient(-4,-4,2,0,0,16);
+  skinGrad.addColorStop(0,'#f2e2c8');
+  skinGrad.addColorStop(1,'#d8c2a0');
+  ctx.fillStyle = skinGrad;
+  ctx.fill();
+
+  // hair back layer (dark navy)
+  ctx.beginPath();
+  ctx.moveTo(-15,2);
+  ctx.quadraticCurveTo(-19,-14,-6,-19);
+  ctx.quadraticCurveTo(6,-24,15,-10);
+  ctx.quadraticCurveTo(19,-2,14,4);
+  ctx.quadraticCurveTo(6,-8,0,-6);
+  ctx.quadraticCurveTo(-8,-8,-15,2);
+  ctx.closePath();
+  const hairGrad = ctx.createLinearGradient(-15,-20,15,10);
+  hairGrad.addColorStop(0,'#161a33');
+  hairGrad.addColorStop(0.5,'#2c3468');
+  hairGrad.addColorStop(1,'#4a5aa8');
+  ctx.fillStyle = hairGrad;
+  ctx.fill();
+
+  // horn-like spiky strands
+  function spike(x1,y1,x2,y2,x3,y3){
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.quadraticCurveTo(x2,y2,x3,y3);
+    ctx.quadraticCurveTo(x1+2,y2+2,x1,y1);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.fillStyle = '#1b2044';
+  spike(-4,-18, -2,-34, 2,-24);
+  spike(3,-19, 8,-33, 9,-20);
+  ctx.fillStyle = '#374a94';
+  spike(-8,-16, -14,-27, -6,-20);
+  spike(9,-15, 16,-24, 11,-16);
+
+  // ear-ish side strand
+  ctx.strokeStyle = '#232a55';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-14,2);
+  ctx.quadraticCurveTo(-18,10,-13,16);
+  ctx.stroke();
+
+  // face features
+  // eyebrow
+  ctx.strokeStyle = '#2a1e14';
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.moveTo(2,-3); ctx.lineTo(9,-4);
+  ctx.stroke();
+
+  // eye (yellow, glowing)
+  ctx.save();
+  ctx.shadowColor = '#f5e35a';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.ellipse(6,1,3.4,4.2,0,0,Math.PI*2);
+  ctx.fillStyle = '#efe0c0';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(6.6,1.4,1.8,2.4,0,0,Math.PI*2);
+  ctx.fillStyle = '#f5e35a';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(6.6,1.4,0.8,0,Math.PI*2);
+  ctx.fillStyle = '#3a2e10';
+  ctx.fill();
+  ctx.restore();
+
+  // small mouth
+  ctx.strokeStyle = '#8a5a4a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(4,7); ctx.lineTo(8,7.5);
+  ctx.stroke();
+
+  // front hair bang over forehead
+  ctx.beginPath();
+  ctx.moveTo(-9,-9);
+  ctx.quadraticCurveTo(-2,-16,6,-11);
+  ctx.quadraticCurveTo(2,-6,-2,-7);
+  ctx.quadraticCurveTo(-6,-5,-9,-9);
+  ctx.closePath();
+  ctx.fillStyle = '#374a94';
+  ctx.fill();
+
+  ctx.restore(); // head
+
+  ctx.restore(); // player
+}
+
+function drawWeapon(){
+  const p = player;
+  ctx.save();
+  // attack thrust animation offset
+  const thrust = p.attackAnim * 16;
+  ctx.translate(10, -2);
+  ctx.rotate(0.35 - p.attackAnim*0.5);
+  ctx.translate(thrust*0.3, 0);
+
+  // shaft
+  const shaftGrad = ctx.createLinearGradient(0,0,0,34);
+  shaftGrad.addColorStop(0,'#dff0ff');
+  shaftGrad.addColorStop(1,'#6a86b8');
+  ctx.fillStyle = shaftGrad;
+  ctx.fillRect(-1.8, 2, 3.6, 34);
+
+  // spearhead
+  ctx.save();
+  ctx.translate(0,0);
+  ctx.beginPath();
+  ctx.moveTo(0,-26);
+  ctx.lineTo(7,-4);
+  ctx.lineTo(3,2);
+  ctx.lineTo(0,-6);
+  ctx.lineTo(-3,2);
+  ctx.lineTo(-7,-4);
+  ctx.closePath();
+  const headGrad = ctx.createLinearGradient(-7,-26,7,2);
+  headGrad.addColorStop(0,'#ffffff');
+  headGrad.addColorStop(0.45,'#9fd0ff');
+  headGrad.addColorStop(1,'#2c4f8c');
+  ctx.fillStyle = headGrad;
+  ctx.shadowColor = '#9fd0ff';
+  ctx.shadowBlur = p.attackAnim>0 ? 14 : 6;
+  ctx.fill();
+  ctx.restore();
+
+  // gem
+  ctx.beginPath();
+  ctx.moveTo(0,-2);
+  ctx.lineTo(3,4);
+  ctx.lineTo(0,10);
+  ctx.lineTo(-3,4);
+  ctx.closePath();
+  ctx.fillStyle = '#5fb8ff';
+  ctx.shadowColor = '#8fd4ff';
+  ctx.shadowBlur = 8;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+function draw(){
+  drawBackground();
+
+  ctx.save();
+  if(camShakeT>0){
+    ctx.translate(rand(-camShakeMag,camShakeMag), rand(-camShakeMag,camShakeMag));
+  }
+
+  drawOrbs();
+  for(const e of enemies) drawEnemy(e);
+  drawOrbitShards();
+  drawSlashFx();
+  drawPlayer();
+  drawParticles();
+
+  ctx.restore();
+}
+
+// ---------- HUD ----------
+function updateHUD(){
+  document.getElementById('hpFill').style.width = clamp(player.hp/player.maxHp,0,1)*100+'%';
+  document.getElementById('expFill').style.width = clamp(player.exp/player.expToNext,0,1)*100+'%';
+  document.getElementById('lvlText').textContent = player.level;
+  document.getElementById('killText').textContent = killCount;
+  const m = Math.floor(survivalTime/60).toString().padStart(2,'0');
+  const s = Math.floor(survivalTime%60).toString().padStart(2,'0');
+  document.getElementById('timeText').textContent = m+':'+s;
+}
+
+// ---------- level up UI ----------
+function showLevelUpPanel(){
+  const overlay = document.getElementById('levelUpOverlay');
+  const row = document.getElementById('cardRow');
+  row.innerHTML = '';
+  const pool = UPGRADE_POOL.slice();
+  // shuffle
+  for(let i=pool.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [pool[i],pool[j]] = [pool[j],pool[i]];
+  }
+  const picks = pool.slice(0,3);
+  for(const up of picks){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<div class="icon">${up.icon}</div><div class="name">${up.name}</div><div class="desc">${up.desc}</div>`;
+    card.addEventListener('click', ()=>{
+      up.apply(player);
+      overlay.classList.remove('show');
+      state = 'playing';
+    });
+    row.appendChild(card);
+  }
+  overlay.classList.add('show');
+}
+
+// ---------- game over ----------
+function triggerGameOver(){
+  state = 'gameover';
+  const m = Math.floor(survivalTime/60).toString().padStart(2,'0');
+  const s = Math.floor(survivalTime%60).toString().padStart(2,'0');
+  document.getElementById('goStats').innerHTML =
+    `Sống sót: <b>${m}:${s}</b> &nbsp;|&nbsp; Hạ gục: <b>${killCount}</b> &nbsp;|&nbsp; Cấp: <b>${player.level}</b>`;
+  document.getElementById('gameOverOverlay').classList.add('show');
+}
+
+document.getElementById('btnStart').addEventListener('click', ()=>{
+  document.getElementById('startOverlay').classList.remove('show');
+  resetGame();
+  state = 'playing';
+});
+
+document.getElementById('btnRestart').addEventListener('click', ()=>{
+  document.getElementById('gameOverOverlay').classList.remove('show');
+  resetGame();
+  state = 'playing';
+});
+
+// ---------- main loop ----------
+function loop(ts){
+  if(!lastTs) lastTs = ts;
+  let dt = (ts-lastTs)/1000;
+  dt = Math.min(dt, 0.05);
+  lastTs = ts;
+
+  if(state==='playing'){
+    update(dt);
+  }
+  if(state==='playing' || state==='levelup' || state==='gameover'){
+    draw();
+  } else {
+    drawBackground();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+resetGame();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
